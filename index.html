@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fretboard Tool</title>
+</head>
+
+<body style="font-family:verdana; font-size:120%;" onload="DrawFretboard(); DrawTriad(); ">
+
+<canvas id="myCanvas" width="1800" height="400" style="border:0px solid #d3d3d3;">
+Your browser does not support the HTML5 canvas tag.</canvas>
+
+<form name="formA">
+<table width="100%">
+  <tr>
+    <td width="33%" valign="top">
+      <form name="formA">
+	  <input type="radio" name="instrumentRadio" value="guitar" checked="true">Guitar 
+	  <br>
+      <div id="guitarTuningsDiv">
+          &nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="guitarTuningRadio" value="standard" checked="true">Standard [E-A-D-G-B-E]
+		  <br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="guitarTuningRadio" value="dropD">Drop D [D-A-D-G-B-E]
+		  <br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="guitarTuningRadio" value="openG">Open G [D-G-D-G-B-D]
+		  <br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="guitarTuningRadio" value="dadf#ad">dadf#ad [D-A-D-F#-A-D]
+		  <br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="guitarTuningRadio" value="dadgad">dadgad [D-A-D-G-A-D]
+      </div>
+	  <br>
+	  <input type="radio" name="instrumentRadio" value="ukulele">Ukulele [G-C-E-A]
+	  <br>
+	  <br>
+      <input type="radio" name="instrumentRadio" value="banjo">Banjo 
+	  <br>
+	  <div id="banjoTuningsDiv">
+          &nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="banjoTuningRadio" value="standardG" checked="true">Standard G [G-D-G-B-D]
+		  <br>
+		  &nbsp;&nbsp;&nbsp;&nbsp;<input type="radio" name="banjoTuningRadio" value="dropC">C or Drop C [G-C-G-B-D]
+      </div>
+	</td>
+	<td width="33%">
+      <select id="mySelect">
+        <option value=0>C</option>
+        <option value=1>C#</option>
+        <option value=2>D</option>
+        <option value=3>D#</option>
+        <option value=4>E</option>
+        <option value=5>F</option>
+        <option value=6>F#</option>
+        <option value=7>G</option>
+        <option value=8>G#</option>
+        <option value=9>A</option>
+        <option value=10>Bb</option>
+        <option value=11>B</option>
+      </select>
+      
+      <br><input type="radio" name="triadRadio" value="majorTriad" checked="true">Major 
+      <br><input type="radio" name="triadRadio" value="minorTriad">Minor
+      <br><input type="radio" name="triadRadio" value="diminishedTriad">Diminished
+	  <br><input type="radio" name="triadRadio" value="augmentedTriad">Augmented
+      <br><input type="radio" name="triadRadio" value="dominantSeventh">7th (dominant)
+      <br><input type="radio" name="triadRadio" value="majorSeventh">Major 7th
+      <br><input type="radio" name="triadRadio" value="minorSeventh">Minor 7th
+      <br><input type="radio" name="triadRadio" value="halfDiminishedSeventh">Half-diminished 7th (m7b5)
+	  <br><input type="radio" name="triadRadio" value="diminishedSeventh">Diminished 7th
+      <br><input type="radio" name="triadRadio" value="majorSixth">Major 6th
+      <br><input type="radio" name="triadRadio" value="minorSixth">Minor 6th
+	  <br><input type="radio" name="triadRadio" value="suspendedSecond">Suspended 2nd
+	  <br><input type="radio" name="triadRadio" value="suspendedFourth">Suspended 4th
+      <br>
+      <br>
+      <input type="radio" name="namePositionRadio" value="name" checked="true">Name 
+      <input type="radio" name="namePositionRadio" value="position">Position
+      <br>
+      <br>
+      <!-- <input type="button" id="clear" value="Clear"> -->
+	</td>
+	<td width="33%"></td>
+  </tr>
+</table>
+
+
+</form>
+
+<p id="demo"></p>
+
+<p id="fretboard"></p>
+
+<p id="fretboardWithCoordinates"></p>
+
+<script>
+
+/******************************
+ * draw strings and frets
+******************************/
+
+let ctx = document.querySelector("canvas").getContext("2d");
+ctx.font = "20px Arial";
+ctx.fillStyle = "black";
+ctx.textAlign = "center";     // horizontal align
+ctx.textBaseline = 'middle';  // vertical align  
+
+let topX = 100;
+let topY = 50;
+let guitarSetup = {"stringCount": 6, "spaceBetweenStrings": 50, "spaceBetweenFrets": 100};
+let ukuleleSetup = {"stringCount": 4, "spaceBetweenStrings": 50, "spaceBetweenFrets": 100};
+let banjoSetup = {"stringCount": 5, "spaceBetweenStrings": 50, "spaceBetweenFrets": 100};
+let fretCount = 16;
+var bottomX;
+var bottomY;
+  
+var selectedInstrument;
+
+function HideShowDiv(instrumentName)
+{
+  var g = document.getElementById("guitarTuningsDiv");
+  var b = document.getElementById("banjoTuningsDiv");
+  switch(instrumentName)
+  {
+	  case "guitar": g.style.display = "block";  b.style.display = "none";  break;
+	  case "ukulele": g.style.display = "none";  b.style.display = "none";  break;
+	  case "banjo": g.style.display = "none";  b.style.display = "block";  break;
+  }	  
+}
+
+function getSelectedGuitarTuning()
+{
+  var ele = document.getElementsByName('guitarTuningRadio'); 
+  var tuning;
+  for(var i = 0; i < ele.length; i++) 
+  {
+    if(ele[i].checked) t = ele[i].value; 
+    switch(t)
+	{
+	  case "standard": selectedTuning = tuningGuitarStandard; break;
+      case "dropD": selectedTuning = tuningGuitarDropD; break;
+	  case "openG": selectedTuning = tuningGuitarOpenG; break;
+	  case "dadf#ad": selectedTuning = tuningGuitarDadfshad; break;
+	  case "dadgad": selectedTuning = tuningGuitarDadgad;
+	}
+  }
+  return selectedTuning;
+}
+
+function getSelectedBanjoTuning()
+{
+  var ele = document.getElementsByName('banjoTuningRadio'); 
+  var tuning;
+  for(var i = 0; i < ele.length; i++) 
+  {
+    if(ele[i].checked) t = ele[i].value; 
+    switch(t)
+	{
+	  case "standardG": selectedTuning = tuningBanjoStandardG; break;
+      case "dropC": selectedTuning = tuningBanjoDropC; 
+	}
+  }
+  return selectedTuning;
+}
+
+function GetSelectedInstrumentName()
+{
+  var ele = document.getElementsByName('instrumentRadio'); 
+  for(var i = 0; i < ele.length; i++) 
+  {
+    if(ele[i].checked) return ele[i].value; 
+  }
+}
+
+function DrawFretboard()
+{
+  // get selected instrument
+  var instrumentName = GetSelectedInstrumentName();
+  switch(instrumentName)
+  {
+    case "guitar": selectedInstrument = guitarSetup; selectedTuning = getSelectedGuitarTuning(); break;
+    case "ukulele": selectedInstrument = ukuleleSetup; selectedTuning = tuningUkuleleStandard; break;
+    case "banjo": selectedInstrument = banjoSetup; selectedTuning = getSelectedBanjoTuning(); break;
+  }
+  bottomX = topX + (selectedInstrument.spaceBetweenFrets * fretCount);
+  bottomY = topY + (selectedInstrument.spaceBetweenStrings * (selectedInstrument.stringCount-1));
+  tunedInstrument = selectedTuning.map(note => tuneStringTo(note)); 
+  HideShowDiv(instrumentName);
+  
+  // adjust banjo 5th string so that the "note" for the string is at index [5] (fifth fret) instead of index [0] (nut)
+  if(instrumentName == "banjo")
+  {
+	var len = tunedInstrument[4].length;
+	tunedInstrument[4] = tunedInstrument[4].slice(len-5).concat(tunedInstrument[4].slice(0, len-5));
+  }
+	
+
+
+  // strings
+  for(let i = 0; i < selectedInstrument.stringCount; i++)
+  {
+	ctx.beginPath();
+    ctx.lineWidth = 2;
+    // special case for banjo's 5th string
+	if(instrumentName == "banjo" && i == 4)
+	  ctx.moveTo(topX + (selectedInstrument.spaceBetweenFrets * 5), topY + selectedInstrument.spaceBetweenStrings * i);
+    else
+	  ctx.moveTo(topX, topY + selectedInstrument.spaceBetweenStrings * i);
+    ctx.lineTo(bottomX, topY + selectedInstrument.spaceBetweenStrings * i);
+    ctx.stroke();
+  }
+  
+  // frets
+  for(let i = 0; i < fretCount; i++)
+  {
+    ctx.beginPath();
+    ctx.lineWidth = 2;
+    ctx.moveTo(topX + (selectedInstrument.spaceBetweenFrets * i), topY);
+    // special case for banjo's 5th string
+	if(instrumentName == "banjo" && i < 5)
+	  ctx.lineTo(topX + (selectedInstrument.spaceBetweenFrets * i), bottomY - selectedInstrument.spaceBetweenStrings);
+	else
+	  ctx.lineTo(topX + (selectedInstrument.spaceBetweenFrets * i), bottomY + 1);
+    ctx.stroke();
+  }
+  
+  // nut
+  ctx.beginPath();
+  ctx.lineWidth = 6;
+  ctx.moveTo(topX, topY-1);
+  // special case for 5-string banjo
+  if(instrumentName == "banjo")
+    ctx.lineTo(topX, bottomY+1 - selectedInstrument.spaceBetweenStrings);
+  else
+    ctx.lineTo(topX, bottomY+1);
+  ctx.stroke();
+
+  // numeric fret markers
+  ctx.fillText("3", topX + (selectedInstrument.spaceBetweenFrets * 3 - 5), bottomY + 60);
+  ctx.fillText("5", topX + (selectedInstrument.spaceBetweenFrets * 5 - 5), bottomY + 60);
+  ctx.fillText("7", topX + (selectedInstrument.spaceBetweenFrets * 7 - 5), bottomY + 60);
+  ctx.fillText("9", topX + (selectedInstrument.spaceBetweenFrets * 9 - 5), bottomY + 60);
+  ctx.fillText("12", topX + (selectedInstrument.spaceBetweenFrets * 12 - 5), bottomY + 60);
+  ctx.fillText("15", topX + (selectedInstrument.spaceBetweenFrets * 15 - 5), bottomY + 60);
+}
+
+/******************************
+ * set notes on strings and frets
+******************************/
+var chromaticScale = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "Bb", "B"];
+var majorHalfSteps = [0, 2, 4, 5, 7, 9, 11, 12];
+var natMinorHalfSteps = [0, 2, 3, 5, 7, 8, 10, 12];
+
+// triads/chords
+var majorTriad = [{"halfsteps":0, "interval":"R"}, {"halfsteps":4, "interval":"M3"}, {"halfsteps":7, "interval":"P5"}];
+var minorTriad = [{"halfsteps":0, "interval":"R"}, {"halfsteps":3, "interval":"m3"}, {"halfsteps":7, "interval":"P5"}];
+var augmentedTriad = [{"halfsteps":0, "interval":"R"}, {"halfsteps":4, "interval":"M3"}, {"halfsteps":8, "interval":"+5"}];
+var diminishedTriad = [{"halfsteps":0, "interval":"R"}, {"halfsteps":3, "interval":"m3"}, {"halfsteps":6, "interval":"d5"}];
+var dominantSeventh = [{"halfsteps":0, "interval":"R"}, {"halfsteps":4, "interval":"M3"}, {"halfsteps":7, "interval":"P5"}, {"halfsteps":10, "interval":"m7"}];
+var majorSeventh = [{"halfsteps":0, "interval":"R"}, {"halfsteps":4, "interval":"M3"}, {"halfsteps":7, "interval":"P5"}, {"halfsteps":11, "interval":"M7"}];
+var minorSeventh = [{"halfsteps":0, "interval":"R"}, {"halfsteps":3, "interval":"m3"}, {"halfsteps":7, "interval":"P5"}, {"halfsteps":10, "interval":"m7"}];
+var diminishedSeventh = [{"halfsteps":0, "interval":"R"}, {"halfsteps":3, "interval":"m3"}, {"halfsteps":6, "interval":"d5"}, {"halfsteps":9, "interval":"d7"}];
+var halfDiminishedSeventh = [{"halfsteps":0, "interval":"R"}, {"halfsteps":3, "interval":"m3"}, {"halfsteps":6, "interval":"d5"}, {"halfsteps":10, "interval":"m7"}];
+var majorSixth = [{"halfsteps":0, "interval":"R"}, {"halfsteps":4, "interval":"M3"}, {"halfsteps":7, "interval":"P5"}, {"halfsteps":9, "interval":"M6"}];
+var minorSixth = [{"halfsteps":0, "interval":"R"}, {"halfsteps":3, "interval":"m3"}, {"halfsteps":7, "interval":"P5"}, {"halfsteps":9, "interval":"M6"}];
+var suspendedSecond = [{"halfsteps":0, "interval":"R"}, {"halfsteps":2, "interval":"M2"}, {"halfsteps":7, "interval":"P5"}];
+var suspendedFourth = [{"halfsteps":0, "interval":"R"}, {"halfsteps":5, "interval":"P4"}, {"halfsteps":7, "interval":"P5"}];
+
+// tunings
+var tuningGuitarStandard = ["E","A","D","G","B","E"].reverse();
+var tuningGuitarDropD = ["D","A","D","G","B","E"].reverse();
+var tuningGuitarOpenG = ["D","G","D","G","B","D"].reverse();
+var tuningGuitarDadfshad = ["D","A","D","F#","A","D"].reverse();
+var tuningGuitarDadgad = ["D","A","D","G","A","D"].reverse();
+var tuningUkuleleStandard = ["G","C","E","A"].reverse();
+var tuningBanjoStandardG = ["G","D","G","B","D"].reverse();
+var tuningBanjoDropC = ["G","C","G","B","D"].reverse();
+
+// default tuning - guitar standard tuning
+var selectedTuning = tuningGuitarStandard;
+var tunedInstrument = selectedTuning.map(note => tuneStringTo(note));
+
+function getMajorScale(tonic)
+{
+  return majorHalfSteps.map(halfSteps => chromaticScale[ (tonic + halfSteps) % chromaticScale.length]);
+}
+
+function getMinorScale(tonic)
+{
+  return natMinorHalfSteps.map(halfSteps => chromaticScale[ (tonic + halfSteps) % chromaticScale.length]);
+}
+
+function getTriad(tonic, selectedTriad)
+{
+  var triad;
+  switch (selectedTriad) {
+    case "majorTriad": triad = majorTriad; break;
+    case "minorTriad": triad = minorTriad; break;
+    case "augmentedTriad": triad = augmentedTriad; break;
+    case "diminishedTriad": triad = diminishedTriad; break;
+    case "dominantSeventh": triad = dominantSeventh; break;
+    case "majorSeventh": triad = majorSeventh; break;
+    case "minorSeventh": triad = minorSeventh; break;
+    case "diminishedSeventh": triad = diminishedSeventh; break;
+    case "halfDiminishedSeventh": triad = halfDiminishedSeventh; break;
+	case "majorSixth": triad = majorSixth; break;
+	case "minorSixth": triad = minorSixth; break;
+	case "suspendedSecond": triad = suspendedSecond; break;
+	case "suspendedFourth": triad = suspendedFourth;
+  }
+  
+  //return triad.map(halfSteps => chromaticScale[ (tonic + halfSteps) % chromaticScale.length]);
+  var current = triad.map(halfSteps => chromaticScale[ (tonic + halfSteps) % chromaticScale.length]);
+  
+  //var NoteAndSteps = triad.map(halfSteps => ({"note":chromaticScale[ (tonic + halfSteps) % chromaticScale.length], "halfsteps":halfSteps}));
+  var NoteAndSteps = triad.map(note => ({"note":chromaticScale[ (tonic + note.halfsteps) % chromaticScale.length], "interval":note.interval}));
+  return NoteAndSteps
+  
+}
+
+function tuneStringTo(note)
+{
+  var notePos = chromaticScale.indexOf(note);
+  var string_1 = chromaticScale.slice(notePos);
+  //var string_2 = chromaticScale.slice(0, notePos+1);
+  var string_2 = chromaticScale.slice(0, notePos);
+  
+  var singleOctaveString = string_1.concat(string_2);
+  var doubleOctaveString = singleOctaveString.concat(singleOctaveString);
+  
+  return doubleOctaveString;
+}
+
+function getFretboardCoordinates()
+{
+  return tunedInstrument.map((string, index) => getStringCoordinates(string, index));
+}
+
+function getStringCoordinates(string, stringPos)
+{
+  return string.map((note,fret) => ({"stringPosition":stringPos, "note":note, "fret":fret, "coordinates": {x: topX + (selectedInstrument.spaceBetweenFrets * fret), y: topY + (selectedInstrument.spaceBetweenStrings * stringPos)}}));
+}
+
+
+/******************************
+ * Draw dots on strings
+******************************/
+function DrawScaleOnStrings(key)
+{
+  var fc = getFretboardCoordinates();
+  fc.forEach(string => {
+	  string.forEach(fret => {if(key.includes(fret.note))MarkFret(fret)} );
+  });
+}
+
+function DrawTriadOnStrings(triad)
+{
+  var fc = getFretboardCoordinates();
+  fc.forEach(string => {
+    string.forEach((fret, index) => {
+      // special case for 5-string banjo - don't draw dots on Banjo's 5th string, frets 0,1,2,3,4
+      if(!(GetSelectedInstrumentName() == "banjo" && fret.stringPosition == 4 && index < 5))
+      {
+        // if the note at this fret on this string is one of the triad's notes, then mark it
+        triad.forEach(t => {
+          if(t.note == fret.note) 
+            MarkFretScaleDegree(fret, t.interval);
+        });
+      }
+    });
+  });
+}
+
+function MarkFret(fret)
+{
+  // draw dot
+  ctx.beginPath(fret);
+  ctx.arc(fret.coordinates.x, fret.coordinates.y, 20,0, 2 * Math.PI);
+  ctx.fillStyle = "orange";
+  ctx.fill();
+  
+  // draw note name
+  ctx.fillStyle = "black";
+  if(fret.note.length == 1)
+    ctx.fillText(fret.note, fret.coordinates.x - 7, fret.coordinates.y + 5);  // offset for 1-character note:  C
+  else
+    ctx.fillText(fret.note, fret.coordinates.x - 10, fret.coordinates.y + 5);  // offset for 2-character note:  C#
+}
+
+function MarkFretScaleDegree(fret, interval)
+{
+  if(fret.fret < fretCount)
+  {
+    //alert(interval);
+    var dotLabel;
+    var ele = document.getElementsByName('namePositionRadio'); 
+    for(var i = 0; i < ele.length; i++) 
+    {
+      if(ele[i].checked) dotLabel = ele[i].value; 
+    }
+    
+    //var dotColors = ["#AF601A","#EB984E","#F5CBA7","#A9DFBF",""]; // brown
+    //var dotColors = ["#1E8449","","#52BE80","","#A9DFBF","",""]; // green
+    var dotColors = ["#239B56","#58D68D","#ABEBC6","#F5CBA7",""]; // green
+
+    //var dotColors = ["#183E31","#497466","#7AAB9B","#B7D2C9",""]; // green
+    
+    var dotColorPosition;
+    switch(interval){
+      case "R":  dotColorPosition = 0; break; 
+      case "m3": 
+      case "M3": dotColorPosition = 1; break;
+      case "d5": 
+      case "P5": 
+      case "+5": dotColorPosition = 2; break;
+      case "M2": 
+      case "P4": 
+      case "M6": 
+      case "d7": 
+      case "m7": 
+      case "M7": dotColorPosition = 3; 
+    }
+	
+    // draw dot
+    ctx.beginPath(fret);
+	  ctx.lineWidth = 2;
+    ctx.arc(fret.coordinates.x, fret.coordinates.y, 20,0, 2 * Math.PI);
+    ctx.fillStyle = dotColors[dotColorPosition];  // "#ABEBC6"; //
+    ctx.fill();
+    if(interval == "R") ctx.stroke();
+
+    // label note/interval
+    ctx.fillStyle = "black";
+    var label = (dotLabel == "name") ? fret.note : (interval);
+    ctx.fillText(label, fret.coordinates.x, fret.coordinates.y);
+  }
+}
+
+
+function DrawScale() {
+  var sel = document.getElementById('mySelect');
+  var keyName = sel.options[sel.selectedIndex].text;
+  var keyPos = parseInt(sel.options[sel.selectedIndex].value, 10);
+  var key;
+
+  // major/minor
+  var majorMinor;
+  var ele = document.getElementsByName('scaleRadio'); 
+  for(var i = 0; i < ele.length; i++) 
+  {
+    if(ele[i].checked) majorMinor = ele[i].value; 
+  }
+  
+  // get notes of scale
+  if(majorMinor == "Major") 
+    key = getMajorScale(keyPos);
+  else 
+    key = getMinorScale(keyPos);
+
+  // draw scale notes on strings
+  DrawScaleOnStrings(key);
+  //DrawTriadOnStrings(key);
+}
+
+function DrawTriad() {
+  
+  // get tonic/root
+  var sel = document.getElementById('mySelect');
+  var tonicName = sel.options[sel.selectedIndex].text;
+  var tonicPos = parseInt(sel.options[sel.selectedIndex].value, 10);
+  
+  // get triad
+  var selectedTriad;
+  var ele = document.getElementsByName('triadRadio'); 
+  for(var i = 0; i < ele.length; i++) 
+  {
+    if(ele[i].checked) selectedTriad = ele[i].value; 
+  }
+  
+  // get triad notes
+  var triad = getTriad(tonicPos, selectedTriad);
+  
+  // draw triad notes on strings
+  DrawTriadOnStrings(triad);
+  
+}
+
+var RedrawFretboard = function() {
+	var mc = document.getElementById('myCanvas');
+	ctx.clearRect(0, 0, mc.width, mc.height);
+	DrawFretboard();
+	DrawTriad();
+}
+	
+
+/******************************
+ * Event listeners
+******************************/
+//document.getElementById('clear').addEventListener('click', function () {
+//  var mc = document.getElementById('myCanvas');
+//  ctx.clearRect(0, 0, mc.width, mc.height);
+//}, false);
+ 
+
+document.getElementById('mySelect').addEventListener('change', function () {
+  var mc = document.getElementById('myCanvas');
+  ctx.clearRect(0, 0, mc.width, mc.height);
+  DrawFretboard();
+  DrawTriad();
+}, false);  
+
+var radios_1 = document.forms["formA"].elements["triadRadio"];
+for(var i = 0, max = radios_1.length; i < max; i++) {
+    radios_1[i].onchange = RedrawFretboard;
+}
+
+var radios_2 = document.forms["formA"].elements["namePositionRadio"];
+for(var i = 0, max = radios_2.length; i < max; i++) {
+    radios_2[i].onchange = RedrawFretboard;
+}
+
+var radios_3 = document.forms["formA"].elements["instrumentRadio"];
+for(var i = 0, max = radios_3.length; i < max; i++) {
+    radios_3[i].onchange = RedrawFretboard;
+}
+
+var radios_4 = document.forms["formA"].elements["guitarTuningRadio"];
+for(var i = 0, max = radios_4.length; i < max; i++) {
+    radios_4[i].onchange = RedrawFretboard;
+}
+
+var radios_5 = document.forms["formA"].elements["banjoTuningRadio"];
+for(var i = 0, max = radios_5.length; i < max; i++) {
+    radios_5[i].onchange = RedrawFretboard;
+}
+
+
+</script>
+
+
+</body>
+</html>
+
